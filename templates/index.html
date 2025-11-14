@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Face Vital Monitor - Comprehensive Health Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+
+      .header {
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        color: white;
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 0.5rem;
+      }
+
+      .main-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+
+      @media (max-width: 1024px) {
+        .main-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .video-section {
+        position: relative;
+      }
+
+      video,
+      #processedCanvas {
+        width: 100%;
+        border-radius: 15px;
+        border: 3px solid #667eea;
+        background: #000;
+      }
+
+      .scanning-border {
+        border: 3px solid #00ff00 !important;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          border-color: #00ff00;
+          box-shadow: 0 0 10px #00ff00;
+        }
+        50% {
+          border-color: #00aa00;
+          box-shadow: 0 0 20px #00aa00;
+        }
+        100% {
+          border-color: #00ff00;
+          box-shadow: 0 0 10px #00ff00;
+        }
+      }
+
+      .status-badge {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        animation: blink 1s infinite;
+      }
+
+      .status-indicator.green {
+        background: #00ff00;
+      }
+
+      .status-indicator.red {
+        background: #ff0000;
+      }
+
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+
+      .controls {
+        display: flex;
+        gap: 15px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      button {
+        padding: 15px 30px;
+        font-size: 16px;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-primary {
+        background: #48bb78;
+        color: white;
+      }
+
+      .btn-danger {
+        background: #f56565;
+        color: white;
+      }
+
+      .btn-info {
+        background: #667eea;
+        color: white;
+      }
+
+      .btn-secondary {
+        background: #718096;
+        color: white;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+      }
+
+      .metric-card {
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        border: 2px solid #e2e8f0;
+        transition: all 0.3s;
+      }
+
+      .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+      }
+
+      .metric-label {
+        font-size: 0.9em;
+        color: #4a5568;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .metric-value {
+        font-size: 2em;
+        font-weight: bold;
+        margin: 10px 0;
+      }
+
+      .metric-value.green {
+        color: #48bb78;
+      }
+      .metric-value.orange {
+        color: #ed8936;
+      }
+      .metric-value.red {
+        color: #f56565;
+      }
+
+      .metric-unit {
+        font-size: 0.8em;
+        color: #718096;
+      }
+
+      .progress-section {
+        background: #f7fafc;
+        padding: 20px;
+        border-radius: 15px;
+        margin: 20px 0;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 30px;
+        background: #e2e8f0;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+      }
+
+      .charts-section {
+        margin-top: 30px;
+      }
+
+      .chart-container {
+        background: white;
+        padding: 20px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .chart-title {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #2d3748;
+        margin-bottom: 15px;
+      }
+
+      .instructions {
+        background: #e6fffa;
+        border-left: 4px solid #38b2ac;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px 0;
+      }
+
+      .instructions h3 {
+        color: #234e52;
+        margin-bottom: 10px;
+      }
+
+      .instructions ul {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .instructions li {
+        padding: 8px 0;
+        color: #2c7a7b;
+      }
+
+      .instructions li:before {
+        content: "✓ ";
+        color: #38b2ac;
+        font-weight: bold;
+        margin-right: 8px;
+      }
+
+      .alert {
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin: 15px 0;
+        font-weight: 500;
+      }
+
+      .alert-success {
+        background: #c6f6d5;
+        color: #22543d;
+        border-left: 4px solid #38a169;
+      }
+
+      .alert-warning {
+        background: #feebc8;
+        color: #744210;
+        border-left: 4px solid #dd6b20;
+      }
+
+      .alert-info {
+        background: #bee3f8;
+        color: #2c5282;
+        border-left: 4px solid #3182ce;
+      }
+
+      canvas {
+        max-height: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🫀 Face Vital Monitor</h1>
+        <p>Advanced PPG-based Health Monitoring with Real-time Analysis</p>
+      </div>
+
+      <div id="alertContainer"></div>
+
+      <div class="main-grid">
+        <div class="video-section">
+          <h2>📹 Live Camera Feed</h2>
+          <div style="position: relative">
+            <video id="video" autoplay playsinline></video>
+            <canvas id="processedCanvas" style="display: none"></canvas>
+            <div id="statusBadge" class="status-badge">
+              <div class="status-indicator red"></div>
+              <span>No Face Detected</span>
+            </div>
+          </div>
+
+          <div class="controls">
+            <button
+              id="startCameraBtn"
+              class="btn-primary"
+              onclick="startCamera()"
+            >
+              📹 Start Camera
+            </button>
+            <button
+              id="stopCameraBtn"
+              class="btn-danger"
+              onclick="stopCamera()"
+              disabled
+            >
+              ⏹️ Stop Camera
+            </button>
+            <button
+              id="startMonitorBtn"
+              class="btn-info"
+              onclick="startMonitoring()"
+              disabled
+            >
+              🔴 Start Scan (30s)
+            </button>
+            <button
+              id="stopMonitorBtn"
+              class="btn-secondary"
+              onclick="stopMonitoring()"
+              disabled
+            >
+              ⏸️ Stop Scan
+            </button>
+            <button
+              id="resetBtn"
+              class="btn-secondary"
+              onclick="resetSession()"
+            >
+              🔄 Reset
+            </button>
+            <button
+              id="reportBtn"
+              class="btn-info"
+              onclick="generateReport()"
+              disabled
+            >
+              📄 Generate PDF Report
+            </button>
+          </div>
+
+          <div
+            id="progressSection"
+            class="progress-section"
+            style="display: none"
+          >
+            <h3>Monitoring Progress</h3>
+            <div class="progress-bar">
+              <div id="progressFill" class="progress-fill" style="width: 0%">
+                <span id="progressText">0%</span>
+              </div>
+            </div>
+            <p style="text-align: center; margin-top: 10px; color: #4a5568">
+              <span id="timeRemaining">30s</span> remaining |
+              <span id="frameCount">0</span> frames captured
+            </p>
+          </div>
+
+          <div class="instructions">
+            <h3>📋 Instructions</h3>
+            <ul>
+              <li>
+                Position yourself in front of the camera with good lighting
+              </li>
+              <li>Ensure your face is clearly visible</li>
+              <li>Click "Start Camera" to activate webcam</li>
+              <li>Click "Start Scan" when face is detected</li>
+              <li>Remain still for 30 seconds during monitoring</li>
+              <li>View results and generate PDF report when complete</li>
+            </ul>
+          </div>
+        </div>
+
+        <div>
+          <h2>📊 Real-time Health Metrics</h2>
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-label">Heart Rate</div>
+              <div id="hrValue" class="metric-value green">0</div>
+              <div class="metric-unit">bpm</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-label">Breathing Rate</div>
+              <div id="brValue" class="metric-value green">0</div>
+              <div class="metric-unit">rpm</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-label">Blood Pressure</div>
+              <div id="bpValue" class="metric-value green">0/0</div>
+              <div class="metric-unit">mmHg</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-label">HRV</div>
+              <div id="hrvValue" class="metric-value green">0</div>
+              <div class="metric-unit">ms</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-label">Stress Index</div>
+              <div id="stressValue" class="metric-value green">0.00</div>
+              <div class="metric-unit">(0-1 scale)</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-label">Parasympathetic</div>
+              <div id="paraValue" class="metric-value green">0</div>
+              <div class="metric-unit">%</div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-label">Wellness Score</div>
+              <div id="wellnessValue" class="metric-value green">0</div>
+              <div class="metric-unit">/100</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="charts-section">
+        <h2>📈 Trend Analysis</h2>
+
+        <div class="chart-container">
+          <div class="chart-title">Heart Rate Trend</div>
+          <canvas id="hrChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <div class="chart-title">Breathing Rate & HRV</div>
+          <canvas id="brHrvChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+          <div class="chart-title">Stress & Wellness</div>
+          <canvas id="stressWellnessChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let video = document.getElementById("video");
+      let processedCanvas = document.getElementById("processedCanvas");
+      let ctx = processedCanvas.getContext("2d");
+      let stream = null;
+      let sessionId = "session_" + Date.now();
+      let monitoringActive = false;
+      let cameraActive = false;
+      let processingInterval = null;
+
+      // Charts
+      let hrChart, brHrvChart, stressWellnessChart;
+
+      function initCharts() {
+        const chartOptions = {
+          responsive: true,
+          maintainAspectRatio: true,
+          animation: { duration: 0 },
+          scales: {
+            x: { display: true },
+            y: { beginAtZero: true },
+          },
+        };
+
+        hrChart = new Chart(document.getElementById("hrChart"), {
+          type: "line",
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: "Heart Rate (bpm)",
+                data: [],
+                borderColor: "#f56565",
+                backgroundColor: "rgba(245, 101, 101, 0.1)",
+                tension: 0.4,
+                fill: true,
+              },
+            ],
+          },
+          options: chartOptions,
+        });
+
+        brHrvChart = new Chart(document.getElementById("brHrvChart"), {
+          type: "line",
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: "Breathing Rate (rpm)",
+                data: [],
+                borderColor: "#4299e1",
+                tension: 0.4,
+                yAxisID: "y",
+              },
+              {
+                label: "HRV (ms)",
+                data: [],
+                borderColor: "#48bb78",
+                tension: 0.4,
+                yAxisID: "y1",
+              },
+            ],
+          },
+          options: {
+            ...chartOptions,
+            scales: {
+              y: { type: "linear", position: "left" },
+              y1: {
+                type: "linear",
+                position: "right",
+                grid: { drawOnChartArea: false },
+              },
+            },
+          },
+        });
+
+        stressWellnessChart = new Chart(
+          document.getElementById("stressWellnessChart"),
+          {
+            type: "line",
+            data: {
+              labels: [],
+              datasets: [
+                {
+                  label: "Stress Index",
+                  data: [],
+                  borderColor: "#ed8936",
+                  tension: 0.4,
+                  yAxisID: "y",
+                },
+                {
+                  label: "Wellness Score",
+                  data: [],
+                  borderColor: "#38b2ac",
+                  tension: 0.4,
+                  yAxisID: "y1",
+                },
+              ],
+            },
+            options: {
+              ...chartOptions,
+              scales: {
+                y: { type: "linear", position: "left", max: 1 },
+                y1: {
+                  type: "linear",
+                  position: "right",
+                  max: 100,
+                  grid: { drawOnChartArea: false },
+                },
+              },
+            },
+          }
+        );
+      }
+
+      async function startCamera() {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+          });
+          video.srcObject = stream;
+          cameraActive = true;
+
+          document.getElementById("startCameraBtn").disabled = true;
+          document.getElementById("stopCameraBtn").disabled = false;
+
+          // Start processing frames
+          processingInterval = setInterval(processFrame, 100);
+
+          showAlert("Camera started successfully!", "success");
+        } catch (error) {
+          showAlert("Error accessing camera: " + error.message, "warning");
+        }
+      }
+
+      function stopCamera() {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          video.srcObject = null;
+          cameraActive = false;
+
+          if (processingInterval) {
+            clearInterval(processingInterval);
+          }
+
+          document.getElementById("startCameraBtn").disabled = false;
+          document.getElementById("stopCameraBtn").disabled = true;
+          document.getElementById("startMonitorBtn").disabled = true;
+
+          if (monitoringActive) {
+            stopMonitoring();
+          }
+
+          showAlert("Camera stopped", "info");
+        }
+      }
+
+      function startMonitoring() {
+        monitoringActive = true;
+        document.getElementById("startMonitorBtn").disabled = true;
+        document.getElementById("stopMonitorBtn").disabled = false;
+        document.getElementById("progressSection").style.display = "block";
+        document.getElementById("reportBtn").disabled = true;
+
+        showAlert(
+          "30-second health monitoring started! Please remain still.",
+          "success"
+        );
+      }
+
+      function stopMonitoring() {
+        monitoringActive = false;
+        document.getElementById("startMonitorBtn").disabled = false;
+        document.getElementById("stopMonitorBtn").disabled = true;
+        document.getElementById("reportBtn").disabled = false;
+
+        showAlert("Monitoring stopped. You can now generate a report.", "info");
+      }
+
+      async function processFrame() {
+        if (!cameraActive) return;
+
+        // Set canvas size
+        processedCanvas.width = video.videoWidth;
+        processedCanvas.height = video.videoHeight;
+
+        // Draw video frame to canvas
+        ctx.drawImage(video, 0, 0);
+
+        // Get image data
+        const imageData = processedCanvas.toDataURL("image/jpeg", 0.8);
+
+        try {
+          const response = await fetch("/process_frame", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              session_id: sessionId,
+              image: imageData,
+              monitoring: monitoringActive,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            // Update face detection status
+            updateFaceStatus(result.face_detected);
+
+            // Update processed image
+            const img = new Image();
+            img.onload = function () {
+              ctx.drawImage(img, 0, 0);
+            };
+            img.src = result.processed_image;
+
+            // Update metrics
+            if (monitoringActive) {
+              updateMetrics(result.results);
+              updateProgress(result.signal_length, result.frame_count);
+
+              // Stop when complete
+              if (result.monitoring_complete) {
+                stopMonitoring();
+                showAlert(
+                  "30-second monitoring complete! Generate report to see full analysis.",
+                  "success"
+                );
+              }
+            }
+
+            // Enable/disable start button
+            document.getElementById("startMonitorBtn").disabled =
+              !result.face_detected || monitoringActive;
+          }
+        } catch (error) {
+          console.error("Error processing frame:", error);
+        }
+      }
+
+      function updateFaceStatus(detected) {
+        const badge = document.getElementById("statusBadge");
+        const indicator = badge.querySelector(".status-indicator");
+        const text = badge.querySelector("span");
+
+        if (detected) {
+          indicator.className = "status-indicator green";
+          text.textContent = "Face Detected";
+          video.classList.add("scanning-border");
+        } else {
+          indicator.className = "status-indicator red";
+          text.textContent = "No Face Detected";
+          video.classList.remove("scanning-border");
+        }
+      }
+
+      function updateMetrics(results) {
+        // Update metric values
+        document.getElementById("hrValue").textContent = results.heart_rate;
+        document.getElementById("brValue").textContent = results.breathing_rate;
+        document.getElementById(
+          "bpValue"
+        ).textContent = `${results.blood_pressure_sys}/${results.blood_pressure_dia}`;
+        document.getElementById("hrvValue").textContent = results.hrv;
+        document.getElementById("stressValue").textContent =
+          results.stress_index.toFixed(2);
+        document.getElementById("paraValue").textContent =
+          results.parasympathetic;
+        document.getElementById("wellnessValue").textContent =
+          results.wellness_score;
+
+        // Update colors
+        updateMetricColor("hrValue", results.heart_rate, 60, 100);
+        updateMetricColor("brValue", results.breathing_rate, 12, 20);
+        updateMetricColor("hrvValue", results.hrv, 40, 100);
+        updateMetricColor("stressValue", results.stress_index, 0, 0.3, true);
+        updateMetricColor("paraValue", results.parasympathetic, 60, 100);
+        updateMetricColor("wellnessValue", results.wellness_score, 70, 100);
+
+        // Update charts every few frames
+        if (Math.random() < 0.2) {
+          updateCharts();
+        }
+      }
+
+      function updateMetricColor(
+        elementId,
+        value,
+        goodMin,
+        goodMax,
+        inverse = false
+      ) {
+        const element = document.getElementById(elementId);
+        element.classList.remove("green", "orange", "red");
+
+        if (inverse) {
+          if (value < goodMax) element.classList.add("green");
+          else if (value < goodMin) element.classList.add("orange");
+          else element.classList.add("red");
+        } else {
+          if (value >= goodMin && value <= goodMax)
+            element.classList.add("green");
+          else if (value >= goodMin * 0.8 && value <= goodMax * 1.2)
+            element.classList.add("orange");
+          else element.classList.add("red");
+        }
+      }
+
+      function updateProgress(signalLength, frameCount) {
+        const progress = Math.min(100, (signalLength / 900) * 100);
+        document.getElementById("progressFill").style.width = progress + "%";
+        document.getElementById("progressText").textContent =
+          Math.round(progress) + "%";
+
+        const remaining = Math.max(0, 30 - signalLength / 30);
+        document.getElementById("timeRemaining").textContent =
+          remaining.toFixed(1) + "s";
+        document.getElementById("frameCount").textContent = frameCount;
+      }
+
+      async function updateCharts() {
+        try {
+          const response = await fetch(`/get_trends/${sessionId}`);
+          const data = await response.json();
+
+          if (data.success) {
+            const maxPoints = 50;
+            const labels = Array.from(
+              { length: Math.min(maxPoints, data.hr_values.length) },
+              (_, i) => i
+            );
+
+            // Update HR chart
+            hrChart.data.labels = labels;
+            hrChart.data.datasets[0].data = data.hr_values.slice(-maxPoints);
+            hrChart.update("none");
+
+            // Update BR/HRV chart
+            brHrvChart.data.labels = labels;
+            brHrvChart.data.datasets[0].data = data.br_values.slice(-maxPoints);
+            brHrvChart.data.datasets[1].data = data.hrv_values.slice(
+              -maxPoints
+            );
+            brHrvChart.update("none");
+
+            // Update Stress/Wellness chart
+            stressWellnessChart.data.labels = labels;
+            stressWellnessChart.data.datasets[0].data =
+              data.stress_values.slice(-maxPoints);
+            stressWellnessChart.data.datasets[1].data =
+              data.wellness_values.slice(-maxPoints);
+            stressWellnessChart.update("none");
+          }
+        } catch (error) {
+          console.error("Error updating charts:", error);
+        }
+      }
+
+      async function resetSession() {
+        if (confirm("Are you sure you want to reset? All data will be lost.")) {
+          try {
+            await fetch(`/reset_session/${sessionId}`, { method: "POST" });
+            sessionId = "session_" + Date.now();
+
+            // Reset UI
+            document.getElementById("progressSection").style.display = "none";
+            document.getElementById("reportBtn").disabled = true;
+
+            // Reset charts
+            hrChart.data.labels = [];
+            hrChart.data.datasets[0].data = [];
+            hrChart.update();
+
+            brHrvChart.data.labels = [];
+            brHrvChart.data.datasets.forEach((ds) => (ds.data = []));
+            brHrvChart.update();
+
+            stressWellnessChart.data.labels = [];
+            stressWellnessChart.data.datasets.forEach((ds) => (ds.data = []));
+            stressWellnessChart.update();
+
+            showAlert("Session reset successfully!", "info");
+          } catch (error) {
+            showAlert("Error resetting session: " + error.message, "warning");
+          }
+        }
+      }
+
+      async function generateReport() {
+        try {
+          showAlert("Generating PDF report...", "info");
+          window.open(`/generate_report/${sessionId}`, "_blank");
+        } catch (error) {
+          showAlert("Error generating report: " + error.message, "warning");
+        }
+      }
+
+      function showAlert(message, type) {
+        const container = document.getElementById("alertContainer");
+        const alert = document.createElement("div");
+        alert.className = `alert alert-${type}`;
+        alert.textContent = message;
+
+        container.innerHTML = "";
+        container.appendChild(alert);
+
+        setTimeout(() => alert.remove(), 5000);
+      }
+
+      // Initialize charts on load
+      window.addEventListener("load", initCharts);
+
+      // Cleanup on page close
+      window.addEventListener("beforeunload", () => {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+      });
+    </script>
+  </body>
+</html>

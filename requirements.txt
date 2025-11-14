@@ -1,0 +1,9 @@
+Flask==3.0.0
+opencv-python==4.8.1.78
+mediapipe==0.10.9
+numpy==1.24.3
+Pillow==10.1.0
+scipy==1.11.4
+matplotlib==3.8.2
+reportlab==4.0.7
+gunicorn==21.2.0
