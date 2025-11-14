@@ -8,11 +8,11 @@
 # mediapipe==0.10.14
 # numpy==1.26.4
 Flask==3.0.0
-opencv-python-headless==4.10.0.84
-Pillow==10.4.0
+opencv-python-headless==4.8.1.78
+Pillow==10.1.0
 scipy==1.11.4
 matplotlib==3.8.2
 reportlab==4.0.7
 gunicorn==21.2.0
-mediapipe==0.10.14
-numpy==1.26.4
+mediapipe==0.10.8
+numpy==1.26.2
