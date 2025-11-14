@@ -286,7 +286,7 @@ def calculate_all_metrics(session):
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("../templates/index.html")
 
 
 @app.route("/process_frame", methods=["POST"])
