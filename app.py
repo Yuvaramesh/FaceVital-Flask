@@ -15,25 +15,6 @@ from collections import deque
 from datetime import datetime
 import json
 
-# ---------------------------
-# WebRTC STUN Server Config
-# ---------------------------
-try:
-    from aiortc import RTCConfiguration
-
-    rtc_config = RTCConfiguration(
-        {
-            "iceServers": [
-                {"urls": ["stun:stun.l.google.com:19302"]},
-                {"urls": ["stun:stun1.l.google.com:19302"]},
-            ]
-        }
-    )
-except:
-    rtc_config = None
-    print("aiortc is not installed. STUN config skipped.")
-
-
 # PDF generation
 try:
     from reportlab.lib.pagesizes import A4
@@ -66,6 +47,7 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5,
 )
+
 # Session storage (in production, use Redis or database)
 sessions = {}
 
@@ -103,6 +85,7 @@ class VitalMonitorSession:
 
         self.frame_count = 0
         self.last_calculation_frame = 0
+        self.calculation_count = 0
 
 
 def extract_ppg_signal(frame, landmarks):
@@ -262,6 +245,198 @@ def calculate_wellness_score(results):
         return 50
 
 
+def get_status_text(metric, results):
+    if metric == "heart_rate":
+        hr = results["heart_rate"]
+        if 60 <= hr <= 100:
+            return "Normal"
+        elif 50 <= hr <= 120:
+            return "Acceptable"
+        else:
+            return "Abnormal"
+    elif metric == "breathing_rate":
+        br = results["breathing_rate"]
+        if 12 <= br <= 20:
+            return "Normal"
+        elif 8 <= br <= 25:
+            return "Acceptable"
+        else:
+            return "Abnormal"
+    elif metric == "blood_pressure":
+        sys_bp = results["blood_pressure_sys"]
+        dia_bp = results["blood_pressure_dia"]
+        if sys_bp < 130 and dia_bp < 85:
+            return "Normal"
+        elif sys_bp < 140 and dia_bp < 90:
+            return "Elevated"
+        else:
+            return "High"
+    elif metric == "hrv":
+        hrv = results["hrv"]
+        if hrv > 40:
+            return "Good"
+        elif hrv > 20:
+            return "Fair"
+        else:
+            return "Poor"
+    elif metric == "stress_index":
+        stress = results["stress_index"]
+        if stress < 0.3:
+            return "Low"
+        elif stress < 0.7:
+            return "Moderate"
+        else:
+            return "High"
+    elif metric == "parasympathetic":
+        para = results["parasympathetic"]
+        if para > 60:
+            return "Good"
+        elif para > 30:
+            return "Fair"
+        else:
+            return "Poor"
+    elif metric == "wellness_score":
+        wellness = results["wellness_score"]
+        if wellness > 70:
+            return "Excellent"
+        elif wellness > 40:
+            return "Good"
+        else:
+            return "Needs Improvement"
+    return "Unknown"
+
+
+def get_health_interpretation(results):
+    interpretations = []
+
+    hr = results["heart_rate"]
+    if hr < 60:
+        interpretations.append(
+            "• Heart Rate: Below normal (Bradycardia) - Consider consulting a healthcare provider."
+        )
+    elif hr > 100:
+        interpretations.append(
+            "• Heart Rate: Above normal (Tachycardia) - May indicate stress, exercise, or other factors."
+        )
+    else:
+        interpretations.append("• Heart Rate: Normal range (60-100 bpm).")
+
+    sys_bp = results["blood_pressure_sys"]
+    dia_bp = results["blood_pressure_dia"]
+    if sys_bp < 120 and dia_bp < 80:
+        interpretations.append("• Blood Pressure: Normal (<120/80 mmHg).")
+    elif sys_bp < 130 and dia_bp < 85:
+        interpretations.append("• Blood Pressure: Normal to slightly elevated.")
+    elif sys_bp < 140 and dia_bp < 90:
+        interpretations.append(
+            "• Blood Pressure: Stage 1 hypertension - monitor regularly."
+        )
+    else:
+        interpretations.append(
+            "• Blood Pressure: High (≥140/90 mmHg) - Recommend medical evaluation."
+        )
+
+    hrv = results["hrv"]
+    if hrv > 40:
+        interpretations.append(
+            "• Heart Rate Variability: Good - indicates healthy autonomic nervous system."
+        )
+    elif hrv > 20:
+        interpretations.append(
+            "• Heart Rate Variability: Fair - room for improvement through stress management."
+        )
+    else:
+        interpretations.append(
+            "• Heart Rate Variability: Low - may indicate stress or autonomic dysfunction."
+        )
+
+    stress = results["stress_index"]
+    if stress < 0.3:
+        interpretations.append(
+            "• Stress Level: Low - maintaining good stress management."
+        )
+    elif stress < 0.7:
+        interpretations.append(
+            "• Stress Level: Moderate - consider stress reduction techniques."
+        )
+    else:
+        interpretations.append(
+            "• Stress Level: High - recommend stress management and relaxation practices."
+        )
+
+    wellness = results["wellness_score"]
+    if wellness > 70:
+        interpretations.append(
+            "• Overall Wellness: Excellent - maintaining good health habits."
+        )
+    elif wellness > 40:
+        interpretations.append(
+            "• Overall Wellness: Good - some areas for improvement identified."
+        )
+    else:
+        interpretations.append(
+            "• Overall Wellness: Needs attention - consider comprehensive health evaluation."
+        )
+
+    return "\n".join(interpretations)
+
+
+def get_recommendations(results):
+    recommendations = []
+
+    hr = results["heart_rate"]
+    stress = results["stress_index"]
+    hrv = results["hrv"]
+    wellness = results["wellness_score"]
+
+    recommendations.append("GENERAL RECOMMENDATIONS:")
+    recommendations.append(
+        "• Maintain regular exercise routine (150 minutes moderate activity per week)"
+    )
+    recommendations.append(
+        "• Practice stress management techniques (meditation, deep breathing)"
+    )
+    recommendations.append("• Ensure adequate sleep (7-9 hours per night)")
+    recommendations.append("• Stay hydrated and maintain balanced nutrition")
+
+    if stress > 0.5:
+        recommendations.append("\nSTRESS MANAGEMENT:")
+        recommendations.append("• Consider mindfulness meditation or yoga")
+        recommendations.append("• Practice progressive muscle relaxation")
+        recommendations.append("• Limit caffeine intake")
+        recommendations.append("• Ensure work-life balance")
+
+    if hrv < 30:
+        recommendations.append("\nHEART RATE VARIABILITY IMPROVEMENT:")
+        recommendations.append("• Regular cardiovascular exercise")
+        recommendations.append("• Breathing exercises (4-7-8 technique)")
+        recommendations.append("• Reduce alcohol consumption")
+        recommendations.append("• Consider heart rate variability training")
+
+    if hr > 100 or hr < 60:
+        recommendations.append("\nHEART RATE CONCERNS:")
+        recommendations.append("• Monitor heart rate regularly")
+        recommendations.append("• Consult healthcare provider if persistent")
+        recommendations.append("• Avoid excessive caffeine")
+        recommendations.append("• Maintain regular sleep schedule")
+
+    if wellness < 50:
+        recommendations.append("\nWELLNESS IMPROVEMENT:")
+        recommendations.append("• Comprehensive health assessment recommended")
+        recommendations.append("• Consider lifestyle modifications")
+        recommendations.append("• Regular monitoring of vital signs")
+        recommendations.append("• Professional health consultation advised")
+
+    recommendations.append("\nDISCLAIMER:")
+    recommendations.append("This is a demonstration tool for educational purposes.")
+    recommendations.append(
+        "Measurements are estimates and should not replace professional medical advice."
+    )
+    recommendations.append("Consult healthcare professionals for medical concerns.")
+
+    return "\n".join(recommendations)
+
+
 def calculate_all_metrics(session):
     if len(session.ppg_signal) < 300:
         return
@@ -297,6 +472,8 @@ def calculate_all_metrics(session):
     wellness = calculate_wellness_score(session.results)
     session.results["wellness_score"] = int(wellness)
     session.wellness_values.append(session.results["wellness_score"])
+
+    session.calculation_count += 1
 
     measurement = {"timestamp": datetime.now().isoformat(), **session.results}
     session.session_data["measurements"].append(measurement)
@@ -337,7 +514,7 @@ def process_frame():
             face_detected = True
             face_landmarks = results.multi_face_landmarks[0]
 
-            # Draw landmarks
+            # Draw styled mesh (matching Streamlit version)
             mp_drawing.draw_landmarks(
                 frame,
                 face_landmarks,
@@ -356,6 +533,15 @@ def process_frame():
                     color=(255, 255, 255), thickness=2, circle_radius=1
                 ),
             )
+            mp_drawing.draw_landmarks(
+                frame,
+                face_landmarks,
+                mp_face_mesh.FACEMESH_IRISES,
+                landmark_drawing_spec=None,
+                connection_drawing_spec=mp_drawing.DrawingSpec(
+                    color=(0, 200, 255), thickness=2, circle_radius=1
+                ),
+            )
 
             # Extract PPG signal if monitoring
             if monitoring:
@@ -365,6 +551,10 @@ def process_frame():
                 session.ppg_signal.append(ppg_value)
                 session.timestamps.append(current_time)
                 session.frame_count += 1
+
+                # Auto-complete monitoring
+                if len(session.ppg_signal) >= 900:
+                    session.session_data["end_time"] = datetime.now().isoformat()
 
                 # Calculate metrics every 30 frames (once per second at 30fps)
                 if (
@@ -416,6 +606,7 @@ def get_trends(session_id):
                 "wellness_values": list(session.wellness_values),
                 "bp_sys_values": list(session.bp_sys_values),
                 "bp_dia_values": list(session.bp_dia_values),
+                "ppg_signal": list(session.ppg_signal),
             }
         )
     except Exception as e:
@@ -448,7 +639,6 @@ def generate_report(session_id):
 
         # Generate PDF
         buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
         story = []
         styles = getSampleStyleSheet()
 
@@ -463,23 +653,85 @@ def generate_report(session_id):
         story.append(Paragraph("COMPREHENSIVE HEALTH MONITORING REPORT", title_style))
         story.append(Spacer(1, 20))
 
-        # Final measurements
+        # Session Information
+        story.append(Paragraph("SESSION INFORMATION", styles["Heading2"]))
+        session_data = [
+            ["Parameter", "Value"],
+            [
+                "Start Time",
+                session.session_data["start_time"][:19].replace("T", " "),
+            ],
+            [
+                "End Time",
+                (
+                    session.session_data["end_time"][:19].replace("T", " ")
+                    if session.session_data["end_time"]
+                    else "N/A"
+                ),
+            ],
+            ["Duration", "30 seconds"],
+            ["Total Frames Captured", str(len(session.ppg_signal))],
+            ["Total Measurements", str(len(session.session_data["measurements"]))],
+            ["Calculations Performed", str(session.calculation_count)],
+        ]
+        session_table = Table(session_data, colWidths=[3 * inch, 3 * inch])
+        session_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 1, colors.black),
+                ]
+            )
+        )
+        story.append(session_table)
+        story.append(Spacer(1, 20))
+
+        # Final Health Measurements
         story.append(Paragraph("FINAL HEALTH MEASUREMENTS", styles["Heading2"]))
         measurements_data = [
-            ["Metric", "Value"],
-            ["Heart Rate", f"{session.results['heart_rate']} bpm"],
-            ["Breathing Rate", f"{session.results['breathing_rate']} rpm"],
+            ["Metric", "Value", "Status"],
+            [
+                "Heart Rate",
+                f"{session.results['heart_rate']} bpm",
+                get_status_text("heart_rate", session.results),
+            ],
+            [
+                "Breathing Rate",
+                f"{session.results['breathing_rate']} rpm",
+                get_status_text("breathing_rate", session.results),
+            ],
             [
                 "Blood Pressure",
                 f"{session.results['blood_pressure_sys']}/{session.results['blood_pressure_dia']} mmHg",
+                get_status_text("blood_pressure", session.results),
             ],
-            ["HRV", f"{session.results['hrv']} ms"],
-            ["Stress Index", f"{session.results['stress_index']}"],
-            ["Parasympathetic Activity", f"{session.results['parasympathetic']}%"],
-            ["Wellness Score", f"{session.results['wellness_score']}/100"],
+            [
+                "HRV",
+                f"{session.results['hrv']} ms",
+                get_status_text("hrv", session.results),
+            ],
+            [
+                "Stress Index",
+                f"{session.results['stress_index']}",
+                get_status_text("stress_index", session.results),
+            ],
+            [
+                "Parasympathetic Activity",
+                f"{session.results['parasympathetic']}%",
+                get_status_text("parasympathetic", session.results),
+            ],
+            [
+                "Wellness Score",
+                f"{session.results['wellness_score']}/100",
+                get_status_text("wellness_score", session.results),
+            ],
         ]
-
-        measurements_table = Table(measurements_data, colWidths=[3 * inch, 3 * inch])
+        measurements_table = Table(
+            measurements_data, colWidths=[2.5 * inch, 2 * inch, 1.5 * inch]
+        )
         measurements_table.setStyle(
             TableStyle(
                 [
@@ -492,8 +744,143 @@ def generate_report(session_id):
             )
         )
         story.append(measurements_table)
+        story.append(PageBreak())
 
+        # Add trend plots
+        story.append(Paragraph("HEALTH METRICS TREND ANALYSIS", styles["Heading2"]))
+
+        # Create trend plots for each metric
+        metrics_to_plot = [
+            ("Heart Rate", session.hr_values, "bpm", "red"),
+            ("Breathing Rate", session.br_values, "rpm", "blue"),
+            ("HRV", session.hrv_values, "ms", "green"),
+            ("Stress Index", session.stress_values, "", "orange"),
+            ("Parasympathetic Activity", session.para_values, "%", "purple"),
+            ("Wellness Score", session.wellness_values, "/100", "teal"),
+        ]
+
+        for name, data_deque, unit, color in metrics_to_plot:
+            if len(data_deque) > 1:
+                try:
+                    fig, ax = plt.subplots(figsize=(10, 4))
+                    fig.patch.set_facecolor("white")
+                    time_axis = np.linspace(-len(data_deque), 0, len(data_deque))
+                    ax.plot(time_axis, list(data_deque), color=color, linewidth=2.5)
+                    ax.set_title(
+                        f"{name} Trend Over 30 Seconds",
+                        fontsize=14,
+                        fontweight="bold",
+                    )
+                    ax.set_xlabel("Time (relative seconds)", fontsize=12)
+                    ax.set_ylabel(f"{name} {unit}", fontsize=12)
+                    ax.grid(True, alpha=0.3)
+                    mean_val = np.mean(list(data_deque))
+                    ax.axhline(
+                        y=mean_val,
+                        color="red",
+                        linestyle="--",
+                        alpha=0.7,
+                        label=f"Mean: {mean_val:.1f}",
+                    )
+                    ax.legend()
+
+                    img_buffer = BytesIO()
+                    fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
+                    img_buffer.seek(0)
+                    story.append(RLImage(img_buffer, width=7 * inch, height=3.5 * inch))
+                    story.append(Spacer(1, 15))
+                    plt.close(fig)
+                except Exception as e:
+                    continue
+
+        # Blood Pressure Combined Plot
+        if len(session.bp_sys_values) > 1:
+            try:
+                fig, ax = plt.subplots(figsize=(10, 4))
+                fig.patch.set_facecolor("white")
+                time_axis = np.linspace(
+                    -len(session.bp_sys_values), 0, len(session.bp_sys_values)
+                )
+                ax.plot(
+                    time_axis,
+                    list(session.bp_sys_values),
+                    "darkred",
+                    linewidth=2.5,
+                    label="Systolic",
+                )
+                ax.plot(
+                    time_axis,
+                    list(session.bp_dia_values),
+                    "maroon",
+                    linewidth=2.5,
+                    label="Diastolic",
+                )
+                ax.set_title(
+                    "Blood Pressure Trend Over 30 Seconds",
+                    fontsize=14,
+                    fontweight="bold",
+                )
+                ax.set_xlabel("Time (relative seconds)", fontsize=12)
+                ax.set_ylabel("Blood Pressure (mmHg)", fontsize=12)
+                ax.grid(True, alpha=0.3)
+                ax.legend()
+
+                img_buffer = BytesIO()
+                fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
+                img_buffer.seek(0)
+                story.append(RLImage(img_buffer, width=7 * inch, height=3.5 * inch))
+                story.append(Spacer(1, 15))
+                plt.close(fig)
+            except Exception as e:
+                pass
+
+        # Raw PPG Signal
+        if len(session.ppg_signal) > 10:
+            try:
+                story.append(PageBreak())
+                story.append(Paragraph("RAW PPG SIGNAL", styles["Heading2"]))
+                fig, ax = plt.subplots(figsize=(10, 6))
+                fig.patch.set_facecolor("white")
+                time_axis = np.linspace(
+                    -len(session.ppg_signal) / 30, 0, len(session.ppg_signal)
+                )
+                ax.plot(time_axis, list(session.ppg_signal), "b-", linewidth=1)
+                ax.set_title("Raw PPG Signal", fontsize=14, fontweight="bold")
+                ax.set_xlabel("Time (seconds)", fontsize=12)
+                ax.set_ylabel("PPG Amplitude", fontsize=12)
+                ax.grid(True, alpha=0.3)
+
+                img_buffer = BytesIO()
+                fig.savefig(img_buffer, format="png", dpi=150, bbox_inches="tight")
+                img_buffer.seek(0)
+                story.append(RLImage(img_buffer, width=7 * inch, height=4 * inch))
+                story.append(Spacer(1, 20))
+                plt.close(fig)
+            except Exception as e:
+                pass
+
+        # Add health interpretation and recommendations
+        story.append(PageBreak())
+        story.append(Paragraph("HEALTH INTERPRETATION", styles["Heading2"]))
+        story.append(
+            Paragraph(get_health_interpretation(session.results), styles["Normal"])
+        )
+        story.append(Spacer(1, 20))
+
+        story.append(Paragraph("RECOMMENDATIONS", styles["Heading2"]))
+        story.append(Paragraph(get_recommendations(session.results), styles["Normal"]))
+
+        # Create PDF
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=18,
+        )
         doc.build(story)
+
         buffer.seek(0)
 
         return send_file(
