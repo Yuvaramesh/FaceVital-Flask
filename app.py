@@ -35,7 +35,7 @@ try:
 except ImportError:
     PDF_AVAILABLE = False
 
-app = Flask(_name_)
+app = Flask(__name__)
 
 # Initialize MediaPipe
 mp_face_mesh = mp.solutions.face_mesh
