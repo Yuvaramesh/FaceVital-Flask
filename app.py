@@ -53,7 +53,7 @@ sessions = {}
 
 
 class VitalMonitorSession:
-    def _init_(self, session_id):
+    def __init__(self, session_id):
         self.session_id = session_id
         self.ppg_signal = deque(maxlen=900)
         self.timestamps = deque(maxlen=900)
@@ -85,7 +85,6 @@ class VitalMonitorSession:
 
         self.frame_count = 0
         self.last_calculation_frame = 0
-        # self.calculation_count = 0
 
 
 def extract_ppg_signal(frame, landmarks):
@@ -245,198 +244,6 @@ def calculate_wellness_score(results):
         return 50
 
 
-# def get_status_text(metric, results):
-#     if metric == "heart_rate":
-#         hr = results["heart_rate"]
-#         if 60 <= hr <= 100:
-#             return "Normal"
-#         elif 50 <= hr <= 120:
-#             return "Acceptable"
-#         else:
-#             return "Abnormal"
-#     elif metric == "breathing_rate":
-#         br = results["breathing_rate"]
-#         if 12 <= br <= 20:
-#             return "Normal"
-#         elif 8 <= br <= 25:
-#             return "Acceptable"
-#         else:
-#             return "Abnormal"
-#     elif metric == "blood_pressure":
-#         sys_bp = results["blood_pressure_sys"]
-#         dia_bp = results["blood_pressure_dia"]
-#         if sys_bp < 130 and dia_bp < 85:
-#             return "Normal"
-#         elif sys_bp < 140 and dia_bp < 90:
-#             return "Elevated"
-#         else:
-#             return "High"
-#     elif metric == "hrv":
-#         hrv = results["hrv"]
-#         if hrv > 40:
-#             return "Good"
-#         elif hrv > 20:
-#             return "Fair"
-#         else:
-#             return "Poor"
-#     elif metric == "stress_index":
-#         stress = results["stress_index"]
-#         if stress < 0.3:
-#             return "Low"
-#         elif stress < 0.7:
-#             return "Moderate"
-#         else:
-#             return "High"
-#     elif metric == "parasympathetic":
-#         para = results["parasympathetic"]
-#         if para > 60:
-#             return "Good"
-#         elif para > 30:
-#             return "Fair"
-#         else:
-#             return "Poor"
-#     elif metric == "wellness_score":
-#         wellness = results["wellness_score"]
-#         if wellness > 70:
-#             return "Excellent"
-#         elif wellness > 40:
-#             return "Good"
-#         else:
-#             return "Needs Improvement"
-#     return "Unknown"
-
-
-# def get_health_interpretation(results):
-#     interpretations = []
-
-#     hr = results["heart_rate"]
-#     if hr < 60:
-#         interpretations.append(
-#             "• Heart Rate: Below normal (Bradycardia) - Consider consulting a healthcare provider."
-#         )
-#     elif hr > 100:
-#         interpretations.append(
-#             "• Heart Rate: Above normal (Tachycardia) - May indicate stress, exercise, or other factors."
-#         )
-#     else:
-#         interpretations.append("• Heart Rate: Normal range (60-100 bpm).")
-
-#     sys_bp = results["blood_pressure_sys"]
-#     dia_bp = results["blood_pressure_dia"]
-#     if sys_bp < 120 and dia_bp < 80:
-#         interpretations.append("• Blood Pressure: Normal (<120/80 mmHg).")
-#     elif sys_bp < 130 and dia_bp < 85:
-#         interpretations.append("• Blood Pressure: Normal to slightly elevated.")
-#     elif sys_bp < 140 and dia_bp < 90:
-#         interpretations.append(
-#             "• Blood Pressure: Stage 1 hypertension - monitor regularly."
-#         )
-#     else:
-#         interpretations.append(
-#             "• Blood Pressure: High (≥140/90 mmHg) - Recommend medical evaluation."
-#         )
-
-#     hrv = results["hrv"]
-#     if hrv > 40:
-#         interpretations.append(
-#             "• Heart Rate Variability: Good - indicates healthy autonomic nervous system."
-#         )
-#     elif hrv > 20:
-#         interpretations.append(
-#             "• Heart Rate Variability: Fair - room for improvement through stress management."
-#         )
-#     else:
-#         interpretations.append(
-#             "• Heart Rate Variability: Low - may indicate stress or autonomic dysfunction."
-#         )
-
-#     stress = results["stress_index"]
-#     if stress < 0.3:
-#         interpretations.append(
-#             "• Stress Level: Low - maintaining good stress management."
-#         )
-#     elif stress < 0.7:
-#         interpretations.append(
-#             "• Stress Level: Moderate - consider stress reduction techniques."
-#         )
-#     else:
-#         interpretations.append(
-#             "• Stress Level: High - recommend stress management and relaxation practices."
-#         )
-
-#     wellness = results["wellness_score"]
-#     if wellness > 70:
-#         interpretations.append(
-#             "• Overall Wellness: Excellent - maintaining good health habits."
-#         )
-#     elif wellness > 40:
-#         interpretations.append(
-#             "• Overall Wellness: Good - some areas for improvement identified."
-#         )
-#     else:
-#         interpretations.append(
-#             "• Overall Wellness: Needs attention - consider comprehensive health evaluation."
-#         )
-
-#     return "\n".join(interpretations)
-
-
-# def get_recommendations(results):
-#     recommendations = []
-
-#     hr = results["heart_rate"]
-#     stress = results["stress_index"]
-#     hrv = results["hrv"]
-#     wellness = results["wellness_score"]
-
-#     recommendations.append("GENERAL RECOMMENDATIONS:")
-#     recommendations.append(
-#         "• Maintain regular exercise routine (150 minutes moderate activity per week)"
-#     )
-#     recommendations.append(
-#         "• Practice stress management techniques (meditation, deep breathing)"
-#     )
-#     recommendations.append("• Ensure adequate sleep (7-9 hours per night)")
-#     recommendations.append("• Stay hydrated and maintain balanced nutrition")
-
-#     if stress > 0.5:
-#         recommendations.append("\nSTRESS MANAGEMENT:")
-#         recommendations.append("• Consider mindfulness meditation or yoga")
-#         recommendations.append("• Practice progressive muscle relaxation")
-#         recommendations.append("• Limit caffeine intake")
-#         recommendations.append("• Ensure work-life balance")
-
-#     if hrv < 30:
-#         recommendations.append("\nHEART RATE VARIABILITY IMPROVEMENT:")
-#         recommendations.append("• Regular cardiovascular exercise")
-#         recommendations.append("• Breathing exercises (4-7-8 technique)")
-#         recommendations.append("• Reduce alcohol consumption")
-#         recommendations.append("• Consider heart rate variability training")
-
-#     if hr > 100 or hr < 60:
-#         recommendations.append("\nHEART RATE CONCERNS:")
-#         recommendations.append("• Monitor heart rate regularly")
-#         recommendations.append("• Consult healthcare provider if persistent")
-#         recommendations.append("• Avoid excessive caffeine")
-#         recommendations.append("• Maintain regular sleep schedule")
-
-#     if wellness < 50:
-#         recommendations.append("\nWELLNESS IMPROVEMENT:")
-#         recommendations.append("• Comprehensive health assessment recommended")
-#         recommendations.append("• Consider lifestyle modifications")
-#         recommendations.append("• Regular monitoring of vital signs")
-#         recommendations.append("• Professional health consultation advised")
-
-#     recommendations.append("\nDISCLAIMER:")
-#     recommendations.append("This is a demonstration tool for educational purposes.")
-#     recommendations.append(
-#         "Measurements are estimates and should not replace professional medical advice."
-#     )
-#     recommendations.append("Consult healthcare professionals for medical concerns.")
-
-#     return "\n".join(recommendations)
-
-
 def calculate_all_metrics(session):
     if len(session.ppg_signal) < 300:
         return
@@ -512,7 +319,7 @@ def process_frame():
             face_detected = True
             face_landmarks = results.multi_face_landmarks[0]
 
-            # Draw styled mesh (matching Streamlit version)
+            # Draw landmarks
             mp_drawing.draw_landmarks(
                 frame,
                 face_landmarks,
@@ -591,7 +398,6 @@ def get_trends(session_id):
                 "wellness_values": list(session.wellness_values),
                 "bp_sys_values": list(session.bp_sys_values),
                 "bp_dia_values": list(session.bp_dia_values),
-                "ppg_signal": list(session.ppg_signal),
             }
         )
     except Exception as e:
@@ -639,6 +445,7 @@ def generate_report(session_id):
         story.append(Paragraph("COMPREHENSIVE HEALTH MONITORING REPORT", title_style))
         story.append(Spacer(1, 20))
 
+        # Final measurements
         story.append(Paragraph("FINAL HEALTH MEASUREMENTS", styles["Heading2"]))
         measurements_data = [
             ["Metric", "Value"],
@@ -653,6 +460,7 @@ def generate_report(session_id):
             ["Parasympathetic Activity", f"{session.results['parasympathetic']}%"],
             ["Wellness Score", f"{session.results['wellness_score']}/100"],
         ]
+
         measurements_table = Table(measurements_data, colWidths=[3 * inch, 3 * inch])
         measurements_table.setStyle(
             TableStyle(
@@ -666,8 +474,8 @@ def generate_report(session_id):
             )
         )
         story.append(measurements_table)
-        doc.build(story)
 
+        doc.build(story)
         buffer.seek(0)
 
         return send_file(
@@ -681,5 +489,5 @@ def generate_report(session_id):
         return jsonify({"success": False, "error": str(e)})
 
 
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+# if __name__ == "__main__":
+#     app.run(debug=True, host="0.0.0.0", port=5000)
