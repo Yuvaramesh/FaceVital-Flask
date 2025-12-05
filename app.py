@@ -15,6 +15,25 @@ from collections import deque
 from datetime import datetime
 import json
 
+# ---------------------------
+# WebRTC STUN Server Config
+# ---------------------------
+try:
+    from aiortc import RTCConfiguration
+
+    rtc_config = RTCConfiguration(
+        {
+            "iceServers": [
+                {"urls": ["stun:stun.l.google.com:19302"]},
+                {"urls": ["stun:stun1.l.google.com:19302"]},
+            ]
+        }
+    )
+except:
+    rtc_config = None
+    print("aiortc is not installed. STUN config skipped.")
+
+
 # PDF generation
 try:
     from reportlab.lib.pagesizes import A4
@@ -47,7 +66,6 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5,
 )
-
 # Session storage (in production, use Redis or database)
 sessions = {}
 
@@ -489,5 +507,5 @@ def generate_report(session_id):
         return jsonify({"success": False, "error": str(e)})
 
 
-# if __name__ == "__main__":
-#     app.run(debug=True, host="0.0.0.0", port=5000)
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
