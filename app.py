@@ -72,7 +72,7 @@ sessions = {}
 
 
 class VitalMonitorSession:
-    def _init_(self, session_id):
+    def __init__(self, session_id):
         self.session_id = session_id
         self.ppg_signal = deque(maxlen=900)
         self.timestamps = deque(maxlen=900)
