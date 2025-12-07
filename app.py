@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from collections import deque
 from datetime import datetime
 import json
+import traceback
 
 # ---------------------------
 # WebRTC STUN Server Config
@@ -71,8 +72,15 @@ face_mesh = mp_face_mesh.FaceMesh(
 sessions = {}
 
 
-class VitalMonitorSession:
+class VitalMonitorSession(object):
+    """Session class for monitoring vital signs"""
+
     def __init__(self, session_id):
+        """Initialize a new monitoring session
+
+        Args:
+            session_id: Unique identifier for this session
+        """
         self.session_id = session_id
         self.ppg_signal = deque(maxlen=900)
         self.timestamps = deque(maxlen=900)
@@ -104,10 +112,10 @@ class VitalMonitorSession:
 
         self.frame_count = 0
         self.last_calculation_frame = 0
-        # self.calculation_count = 0
 
 
 def extract_ppg_signal(frame, landmarks):
+    """Extract PPG signal from facial regions"""
     try:
         h, w = frame.shape[:2]
 
@@ -135,11 +143,13 @@ def extract_ppg_signal(frame, landmarks):
         if roi_values:
             return np.mean(roi_values)
         return 0
-    except:
+    except Exception as e:
+        print(f"Error extracting PPG signal: {e}")
         return 0
 
 
 def calculate_heart_rate(signal_data, fps=30):
+    """Calculate heart rate from PPG signal"""
     if len(signal_data) < fps * 8:
         return 0
 
@@ -163,12 +173,13 @@ def calculate_heart_rate(signal_data, fps=30):
             heart_rate_hz = valid_freqs[peak_idx]
             heart_rate_bpm = heart_rate_hz * 60
             return max(50, min(200, heart_rate_bpm))
-    except:
-        pass
+    except Exception as e:
+        print(f"Error calculating heart rate: {e}")
     return 0
 
 
 def calculate_breathing_rate(signal_data, fps=30):
+    """Calculate breathing rate from PPG signal"""
     if len(signal_data) < fps * 12:
         return 0
 
@@ -182,11 +193,13 @@ def calculate_breathing_rate(signal_data, fps=30):
         peaks, _ = signal.find_peaks(filtered, distance=fps * 2)
         breathing_rate = len(peaks) * (60 / (len(signal_data) / fps))
         return max(8, min(35, breathing_rate))
-    except:
+    except Exception as e:
+        print(f"Error calculating breathing rate: {e}")
         return 0
 
 
 def calculate_hrv(signal_data, fps=30):
+    """Calculate heart rate variability"""
     if len(signal_data) < fps * 15:
         return 0
 
@@ -201,32 +214,38 @@ def calculate_hrv(signal_data, fps=30):
         successive_diffs = np.diff(intervals)
         rmssd = np.sqrt(np.mean(successive_diffs**2))
         return min(100, max(10, rmssd))
-    except:
+    except Exception as e:
+        print(f"Error calculating HRV: {e}")
         return 0
 
 
 def calculate_stress_index(heart_rate, hrv, breathing_rate):
+    """Calculate stress index from vital signs"""
     try:
         hr_stress = max(0, (heart_rate - 70) / 50)
         hrv_stress = max(0, (50 - hrv) / 50)
         br_stress = max(0, (breathing_rate - 15) / 15)
         stress_index = (hr_stress + hrv_stress + br_stress) / 3
         return min(1.0, max(0.0, stress_index))
-    except:
+    except Exception as e:
+        print(f"Error calculating stress index: {e}")
         return 0
 
 
 def calculate_parasympathetic_activity(hrv, breathing_rate):
+    """Calculate parasympathetic nervous system activity"""
     try:
         hrv_factor = min(1.0, hrv / 50)
         breathing_factor = max(0, (20 - breathing_rate) / 10)
         parasympathetic = (hrv_factor + breathing_factor) / 2 * 100
         return min(100, max(0, parasympathetic))
-    except:
+    except Exception as e:
+        print(f"Error calculating parasympathetic activity: {e}")
         return 50
 
 
 def estimate_blood_pressure(heart_rate, hrv, stress_index):
+    """Estimate blood pressure from vital signs"""
     try:
         base_sys = 120
         base_dia = 80
@@ -242,11 +261,13 @@ def estimate_blood_pressure(heart_rate, hrv, stress_index):
         dia_bp = max(60, min(120, dia_bp))
 
         return int(sys_bp), int(dia_bp)
-    except:
+    except Exception as e:
+        print(f"Error estimating blood pressure: {e}")
         return 120, 80
 
 
 def calculate_wellness_score(results):
+    """Calculate overall wellness score"""
     try:
         hr = results["heart_rate"]
         hrv = results["hrv"]
@@ -260,203 +281,13 @@ def calculate_wellness_score(results):
 
         wellness = (hr_score + hrv_score + stress_score + para_score) / 4 * 100
         return max(0, min(100, wellness))
-    except:
+    except Exception as e:
+        print(f"Error calculating wellness score: {e}")
         return 50
 
 
-# def get_status_text(metric, results):
-#     if metric == "heart_rate":
-#         hr = results["heart_rate"]
-#         if 60 <= hr <= 100:
-#             return "Normal"
-#         elif 50 <= hr <= 120:
-#             return "Acceptable"
-#         else:
-#             return "Abnormal"
-#     elif metric == "breathing_rate":
-#         br = results["breathing_rate"]
-#         if 12 <= br <= 20:
-#             return "Normal"
-#         elif 8 <= br <= 25:
-#             return "Acceptable"
-#         else:
-#             return "Abnormal"
-#     elif metric == "blood_pressure":
-#         sys_bp = results["blood_pressure_sys"]
-#         dia_bp = results["blood_pressure_dia"]
-#         if sys_bp < 130 and dia_bp < 85:
-#             return "Normal"
-#         elif sys_bp < 140 and dia_bp < 90:
-#             return "Elevated"
-#         else:
-#             return "High"
-#     elif metric == "hrv":
-#         hrv = results["hrv"]
-#         if hrv > 40:
-#             return "Good"
-#         elif hrv > 20:
-#             return "Fair"
-#         else:
-#             return "Poor"
-#     elif metric == "stress_index":
-#         stress = results["stress_index"]
-#         if stress < 0.3:
-#             return "Low"
-#         elif stress < 0.7:
-#             return "Moderate"
-#         else:
-#             return "High"
-#     elif metric == "parasympathetic":
-#         para = results["parasympathetic"]
-#         if para > 60:
-#             return "Good"
-#         elif para > 30:
-#             return "Fair"
-#         else:
-#             return "Poor"
-#     elif metric == "wellness_score":
-#         wellness = results["wellness_score"]
-#         if wellness > 70:
-#             return "Excellent"
-#         elif wellness > 40:
-#             return "Good"
-#         else:
-#             return "Needs Improvement"
-#     return "Unknown"
-
-
-# def get_health_interpretation(results):
-#     interpretations = []
-
-#     hr = results["heart_rate"]
-#     if hr < 60:
-#         interpretations.append(
-#             "• Heart Rate: Below normal (Bradycardia) - Consider consulting a healthcare provider."
-#         )
-#     elif hr > 100:
-#         interpretations.append(
-#             "• Heart Rate: Above normal (Tachycardia) - May indicate stress, exercise, or other factors."
-#         )
-#     else:
-#         interpretations.append("• Heart Rate: Normal range (60-100 bpm).")
-
-#     sys_bp = results["blood_pressure_sys"]
-#     dia_bp = results["blood_pressure_dia"]
-#     if sys_bp < 120 and dia_bp < 80:
-#         interpretations.append("• Blood Pressure: Normal (<120/80 mmHg).")
-#     elif sys_bp < 130 and dia_bp < 85:
-#         interpretations.append("• Blood Pressure: Normal to slightly elevated.")
-#     elif sys_bp < 140 and dia_bp < 90:
-#         interpretations.append(
-#             "• Blood Pressure: Stage 1 hypertension - monitor regularly."
-#         )
-#     else:
-#         interpretations.append(
-#             "• Blood Pressure: High (≥140/90 mmHg) - Recommend medical evaluation."
-#         )
-
-#     hrv = results["hrv"]
-#     if hrv > 40:
-#         interpretations.append(
-#             "• Heart Rate Variability: Good - indicates healthy autonomic nervous system."
-#         )
-#     elif hrv > 20:
-#         interpretations.append(
-#             "• Heart Rate Variability: Fair - room for improvement through stress management."
-#         )
-#     else:
-#         interpretations.append(
-#             "• Heart Rate Variability: Low - may indicate stress or autonomic dysfunction."
-#         )
-
-#     stress = results["stress_index"]
-#     if stress < 0.3:
-#         interpretations.append(
-#             "• Stress Level: Low - maintaining good stress management."
-#         )
-#     elif stress < 0.7:
-#         interpretations.append(
-#             "• Stress Level: Moderate - consider stress reduction techniques."
-#         )
-#     else:
-#         interpretations.append(
-#             "• Stress Level: High - recommend stress management and relaxation practices."
-#         )
-
-#     wellness = results["wellness_score"]
-#     if wellness > 70:
-#         interpretations.append(
-#             "• Overall Wellness: Excellent - maintaining good health habits."
-#         )
-#     elif wellness > 40:
-#         interpretations.append(
-#             "• Overall Wellness: Good - some areas for improvement identified."
-#         )
-#     else:
-#         interpretations.append(
-#             "• Overall Wellness: Needs attention - consider comprehensive health evaluation."
-#         )
-
-#     return "\n".join(interpretations)
-
-
-# def get_recommendations(results):
-#     recommendations = []
-
-#     hr = results["heart_rate"]
-#     stress = results["stress_index"]
-#     hrv = results["hrv"]
-#     wellness = results["wellness_score"]
-
-#     recommendations.append("GENERAL RECOMMENDATIONS:")
-#     recommendations.append(
-#         "• Maintain regular exercise routine (150 minutes moderate activity per week)"
-#     )
-#     recommendations.append(
-#         "• Practice stress management techniques (meditation, deep breathing)"
-#     )
-#     recommendations.append("• Ensure adequate sleep (7-9 hours per night)")
-#     recommendations.append("• Stay hydrated and maintain balanced nutrition")
-
-#     if stress > 0.5:
-#         recommendations.append("\nSTRESS MANAGEMENT:")
-#         recommendations.append("• Consider mindfulness meditation or yoga")
-#         recommendations.append("• Practice progressive muscle relaxation")
-#         recommendations.append("• Limit caffeine intake")
-#         recommendations.append("• Ensure work-life balance")
-
-#     if hrv < 30:
-#         recommendations.append("\nHEART RATE VARIABILITY IMPROVEMENT:")
-#         recommendations.append("• Regular cardiovascular exercise")
-#         recommendations.append("• Breathing exercises (4-7-8 technique)")
-#         recommendations.append("• Reduce alcohol consumption")
-#         recommendations.append("• Consider heart rate variability training")
-
-#     if hr > 100 or hr < 60:
-#         recommendations.append("\nHEART RATE CONCERNS:")
-#         recommendations.append("• Monitor heart rate regularly")
-#         recommendations.append("• Consult healthcare provider if persistent")
-#         recommendations.append("• Avoid excessive caffeine")
-#         recommendations.append("• Maintain regular sleep schedule")
-
-#     if wellness < 50:
-#         recommendations.append("\nWELLNESS IMPROVEMENT:")
-#         recommendations.append("• Comprehensive health assessment recommended")
-#         recommendations.append("• Consider lifestyle modifications")
-#         recommendations.append("• Regular monitoring of vital signs")
-#         recommendations.append("• Professional health consultation advised")
-
-#     recommendations.append("\nDISCLAIMER:")
-#     recommendations.append("This is a demonstration tool for educational purposes.")
-#     recommendations.append(
-#         "Measurements are estimates and should not replace professional medical advice."
-#     )
-#     recommendations.append("Consult healthcare professionals for medical concerns.")
-
-#     return "\n".join(recommendations)
-
-
 def calculate_all_metrics(session):
+    """Calculate all health metrics for the session"""
     if len(session.ppg_signal) < 300:
         return
 
@@ -509,9 +340,27 @@ def process_frame():
         image_data = data["image"].split(",")[1]
         monitoring = data.get("monitoring", False)
 
-        # Get or create session
+        # Get or create session with enhanced error handling
         if session_id not in sessions:
-            sessions[session_id] = VitalMonitorSession(session_id)
+            try:
+                print(f"Creating new session: {session_id}")
+                print(f"VitalMonitorSession class: {VitalMonitorSession}")
+                print(f"VitalMonitorSession type: {type(VitalMonitorSession)}")
+
+                # Create new session instance
+                new_session = VitalMonitorSession(session_id)
+                sessions[session_id] = new_session
+
+                print(f"Session created successfully for {session_id}")
+            except Exception as session_error:
+                print(f"ERROR creating session: {session_error}")
+                traceback.print_exc()
+                return jsonify(
+                    {
+                        "success": False,
+                        "error": f"Session creation failed: {str(session_error)}",
+                    }
+                )
 
         session = sessions[session_id]
 
@@ -531,7 +380,7 @@ def process_frame():
             face_detected = True
             face_landmarks = results.multi_face_landmarks[0]
 
-            # Draw styled mesh (matching Streamlit version)
+            # Draw styled mesh
             mp_drawing.draw_landmarks(
                 frame,
                 face_landmarks,
@@ -588,6 +437,8 @@ def process_frame():
         )
 
     except Exception as e:
+        print(f"ERROR in process_frame: {e}")
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)})
 
 
@@ -614,6 +465,8 @@ def get_trends(session_id):
             }
         )
     except Exception as e:
+        print(f"ERROR in get_trends: {e}")
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)})
 
 
@@ -624,6 +477,7 @@ def reset_session(session_id):
             del sessions[session_id]
         return jsonify({"success": True})
     except Exception as e:
+        print(f"ERROR in reset_session: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 
@@ -697,8 +551,14 @@ def generate_report(session_id):
         )
 
     except Exception as e:
+        print(f"ERROR in generate_report: {e}")
+        traceback.print_exc()
         return jsonify({"success": False, "error": str(e)})
 
+
+# Verify class is properly defined at module load time
+print(f"VitalMonitorSession class loaded: {VitalMonitorSession}")
+print(f"VitalMonitorSession has __init__: {hasattr(VitalMonitorSession, '__init__')}")
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
