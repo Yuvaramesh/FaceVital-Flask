@@ -44,8 +44,8 @@ face_mesh = mp_face_mesh.FaceMesh(
     static_image_mode=False,
     max_num_faces=1,
     refine_landmarks=True,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5,
+    min_detection_confidence=0.3,
+    min_tracking_confidence=0.3,
 )
 
 # Session storage (in production, use Redis or database)
@@ -297,17 +297,15 @@ def process_frame():
         image_data = data["image"].split(",")[1]
         monitoring = data.get("monitoring", False)
 
-        # Get or create session
-        if session_id not in sessions:
-            sessions[session_id] = VitalMonitorSession(session_id)
-
-        session = sessions[session_id]
-
         # Decode image
         image_bytes = base64.b64decode(image_data)
         image = Image.open(BytesIO(image_bytes))
         frame = np.array(image)
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+        # Check image dimensions
+        h, w = frame.shape[:2]
+        print(f"Frame size: {w}x{h}")  # Add this for debugging
 
         # Process with MediaPipe
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
