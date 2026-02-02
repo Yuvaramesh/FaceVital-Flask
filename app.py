@@ -37,15 +37,15 @@ except ImportError:
 
 app = Flask(__name__)
 
-# Initialize MediaPipe
+# Initialize MediaPipe with more lenient settings for deployed environments
 mp_face_mesh = mp.solutions.face_mesh
 mp_drawing = mp.solutions.drawing_utils
 face_mesh = mp_face_mesh.FaceMesh(
     static_image_mode=False,
     max_num_faces=1,
     refine_landmarks=True,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5,
+    min_detection_confidence=0.3,  # Lowered from 0.5
+    min_tracking_confidence=0.3,  # Lowered from 0.5
 )
 
 # Session storage (in production, use Redis or database)
@@ -502,11 +502,29 @@ def process_frame():
         image_bytes = base64.b64decode(image_data)
         image = Image.open(BytesIO(image_bytes))
         frame = np.array(image)
-        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-        # Process with MediaPipe
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # Ensure frame is in correct color format
+        if frame.shape[-1] == 4:  # RGBA
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+        elif frame.shape[-1] == 3:  # RGB
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+        # Pre-process frame for better detection
+        # Enhance contrast
+        lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        l = clahe.apply(l)
+        enhanced_frame = cv2.merge([l, a, b])
+        enhanced_frame = cv2.cvtColor(enhanced_frame, cv2.COLOR_LAB2BGR)
+
+        # Process with MediaPipe using enhanced frame
+        frame_rgb = cv2.cvtColor(enhanced_frame, cv2.COLOR_BGR2RGB)
+
+        # Set writable flag to False for better performance
+        frame_rgb.flags.writeable = False
         results = face_mesh.process(frame_rgb)
+        frame_rgb.flags.writeable = True
 
         face_detected = False
 
@@ -514,6 +532,7 @@ def process_frame():
             face_detected = True
             face_landmarks = results.multi_face_landmarks[0]
 
+            # Use original frame for drawing (not enhanced)
             # Draw styled mesh (matching Streamlit version)
             mp_drawing.draw_landmarks(
                 frame,
@@ -584,6 +603,7 @@ def process_frame():
         )
 
     except Exception as e:
+        print(f"Error in process_frame: {str(e)}")  # Log error
         return jsonify({"success": False, "error": str(e)})
 
 
