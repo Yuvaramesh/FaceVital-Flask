@@ -1,0 +1,14 @@
+[server]
+port = 8501
+headless = true
+runOnSave = true
+maxUploadSize = 200
+
+[browser]
+gatherUsageStats = false
+
+[logger]
+level = "info"
+
+[client]
+showErrorDetails = true
