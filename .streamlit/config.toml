@@ -1,14 +1,22 @@
 [server]
 port = 8501
 headless = true
-runOnSave = true
+runOnSave = false
 maxUploadSize = 200
+enableXsrfProtection = true
 
 [browser]
 gatherUsageStats = false
 
 [logger]
-level = "info"
+level = "error"
 
 [client]
-showErrorDetails = true
+showErrorDetails = false
+sendStaticFilesContentSecurityPolicy = false
+
+[theme]
+primaryColor = "#6366f1"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f2f6"
+textColor = "#31333f"

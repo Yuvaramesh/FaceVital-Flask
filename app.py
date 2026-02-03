@@ -1,3 +1,13 @@
+import os
+import sys
+import warnings
+
+warnings.filterwarnings("ignore")
+
+# Suppress OpenCV camera warnings
+os.environ["OPENCV_LOG_LEVEL"] = "OFF"
+os.environ["OPENCV_VIDEOIO_DEBUG"] = "0"
+
 import streamlit as st
 import streamlit.components.v1 as components
 import cv2
@@ -6,13 +16,26 @@ import mediapipe as mp
 import time
 from scipy import signal
 from scipy.fft import fft
+import matplotlib
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+plt.ioff()
+
 from collections import deque
 from datetime import datetime
 import io
 import base64
 import threading
 import queue
+
+# Suppress TensorFlow/NumPy warnings
+import logging
+
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+logging.getLogger("numpy").setLevel(logging.ERROR)
+logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
 # PDF generation libraries
 try:
