@@ -13,7 +13,6 @@ level = "error"
 
 [client]
 showErrorDetails = false
-sendStaticFilesContentSecurityPolicy = false
 
 [theme]
 primaryColor = "#6366f1"
